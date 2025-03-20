@@ -80,6 +80,10 @@ async function start(client) {
       sessao = checkSession(message.from);
       let mensagem = getMessage(sessao,message, true)
       await client.sendText(message.from,mensagem);
+    }else if (message.body === '11' && message.isGroupMsg === false) {
+      sessao = checkSession(message.from);
+      sessao.arriscarTudo = true;
+      await client.sendText(message.from,'Ok, então você sabe a palavra, lembrando que se você errar é game over, digite a palavra completa!');
     }
     else{
       sessao = checkSession(message.from)
@@ -89,7 +93,13 @@ async function start(client) {
           await client.sendText(message.from,mensagem.message);  
           let newMensage = getMessage(sessao,message, true)
           await client.sendText(message.from,newMensage);
-        }else{
+        }else if(mensagem.arriscarTudo){
+          await client.sendText(message.from,mensagem.message); 
+          sessao.arriscarTudo = false;
+          let newMensage = getMessage(sessao,message, true)
+          await client.sendText(message.from,newMensage);
+        }
+        else{
           await client.sendText(message.from,mensagem);
         }
        }
@@ -101,7 +111,9 @@ function getMessage(sessao, message, isFirst) {
   let retorno;
   let levelAtual = getSessionLevel(sessao); // Obtém o nível atual do jogo
 
-  if(!isFirst && message.body !== 'tec-game'){
+
+
+  if(!isFirst && message.body !== 'tec-game' && !sessao.arriscarTudo){
     if (message.body.length !== 1) {
       return "Digite apenas *UMA LETRA* por vez!!!!";
     }
@@ -115,7 +127,6 @@ function getMessage(sessao, message, isFirst) {
       return "VOCÊ JÁ TENTOU ESSA LETRA, LETRAS JÁ TENTADAS: " + 
              sessao.nivel.letrasAcerto.join(", ") + " " + sessao.nivel.letrasErros.join(", ");
     }
-  
     // Se a letra existe na palavra
     if (levelAtual.palavra.includes(letra)) {
       sessao.nivel.letrasAcerto.push(letra); // Adiciona ao array de acertos
@@ -125,6 +136,21 @@ function getMessage(sessao, message, isFirst) {
       retorno = getMessageErro(sessao, levelAtual, letra);
     }
     return retorno;
+  }else if (sessao.arriscarTudo) {
+    let tentativa = message.body.toUpperCase().trim(); // Normaliza a tentativa
+    let palavraCorreta = levelAtual.palavra.join("").toUpperCase(); // Palavra correta como string
+    if (tentativa === palavraCorreta) {
+      sessao.nivel.nivelAtual = sessao.nivel.nivelAtual+1 
+      sessao.nivel.letrasAcerto=  [];
+      sessao.nivel.letrasErros= [];
+      if(sessao.nivel.nivelAtual ==  leveis.length){
+        return `🎉 Parabéns! Você descobriu a palavra: ${levelAtual.palavra.join("")} \n ${levelAtual.resposta}  \n \n 🎉 Parabéns! Você finalizou o jogo! Digite 99 para sair ou 00 para reiniciar!`;
+      }
+      return {message: `🎉 Parabéns! Você descobriu a palavra: ${levelAtual.palavra.join("")} \n ${levelAtual.resposta} `, arriscarTudo:true} ;
+    } else {
+        // Reseta a sessão e informa que o jogo acabou
+        return forcaEstagios[6];
+    }
   }else {
     let palavraOculta = levelAtual.palavra.map(() => "_").join(" ");
     return `Jogo da Forca! Digite 00 para reiniciar 😢 , 99 para sair 😭, ou a próxima letra da palavra para jogar! 😄🏆\n\n` +
@@ -133,6 +159,9 @@ function getMessage(sessao, message, isFirst) {
            `${levelAtual.dica
            }`;
   }
+
+  
+
 }
 
 function getMessageErro(sessao, level, letra) {
@@ -168,12 +197,11 @@ function getMessageSucesso(sessao, level, letra) {
     sessao.nivel.letrasErros= [];
     if(sessao.nivel.nivelAtual ==  leveis.length){
       return `🎉 Parabéns! Você descobriu a palavra: ${level.palavra.join("")} \n ${level.resposta}  \n \n 🎉 Parabéns! Você finalizou o jogo! Digite 99 para sair ou 00 para reiniciar!`;
-
     }
     return {message: `🎉 Parabéns! Você descobriu a palavra: ${level.palavra.join("")} \n ${level.resposta} `, finishLevel:true} ;
   }
 
-  return `${forca}  \n ✅ Letra "${letra}" correta! \n Palavra: ${palavraRetorno} \n ${level.dica}` ;
+  return `${forca}  \n ✅ Letra "${letra}" correta! \n Palavra: ${palavraRetorno} \n ${level.dica} \nDigite *11* se você for 😎*O BRABO* e saber palavra 😎 e quiser arriscar tudo, lembrando que se você errar é 💀 GAME OVER 💀 ` ;
 }
 
 
